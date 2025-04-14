@@ -1,38 +1,19 @@
-/* App.css */
-.app {
-  text-align: center;
-  padding: 2rem;
-  font-family: Arial, sans-serif;
+body {
+  margin: 0;
+  padding: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh; /* Full viewport height */
+  background-color: #ffffff; /* Optional: match background */
+}
+
+.container {
+  max-width: 600px;
+  width: 100%;
+  padding: 20px;
+  border-radius: 12px;
   background: #f0f8ff;
-  min-height: 100vh;
-}
-
-h1 {
-  color: #0077b6;
-}
-
-button {
-  padding: 10px 20px;
-  margin: 10px;
-  background: #0077b6;
-  color: white;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-}
-
-button:disabled {
-  background: #999;
-  cursor: not-allowed;
-}
-
-.bill-info {
-  margin-top: 20px;
-  font-size: 18px;
-}
-
-.status {
-  margin-top: 20px;
-  font-weight: bold;
-  color: #2c3e50;
+  font-family: Arial, sans-serif;
+  box-shadow: none !important; /* 🚫 Force remove shadow */
 }

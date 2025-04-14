@@ -1,23 +1,25 @@
 // scripts/deploy.js
+
 const hre = require("hardhat");
 
 async function main() {
-  const [deployer] = await hre.ethers.getSigners();
+    // Compile contracts (optional but good in dev)
+    await hre.run('compile');
 
-  console.log("Deploying contract with account:", deployer.address);
+    // Get the contract factory
+    const WaterBill = await hre.ethers.getContractFactory("WaterBill");
 
-  const balance = await deployer.getBalance();
-  console.log("Account balance:", hre.ethers.utils.formatEther(balance), "ETH");
+    // Deploy the contract
+    const waterBill = await WaterBill.deploy();
 
-  const WaterBillManager = await hre.ethers.getContractFactory("WaterBillManager");
-  const contract = await WaterBillManager.deploy();
+    // Wait for deployment to complete (ethers v6)
+    await waterBill.waitForDeployment();
 
-  await contract.deployed();
-
-  console.log("WaterBillManager deployed to:", contract.address);
+    // Print deployed contract address
+    console.log(`✅ Contract deployed at: ${waterBill.target}`);
 }
 
 main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
+    console.error("❌ Deployment failed:", error);
+    process.exitCode = 1;
 });

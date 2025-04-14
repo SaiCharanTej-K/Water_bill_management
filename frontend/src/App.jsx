@@ -1,89 +1,123 @@
 import React, { useEffect, useState } from "react";
 import { ethers } from "ethers";
+import contractJson from './artifacts/contracts/WaterBill.sol/WaterBill.json';
+
 import "./App.css";
-import WaterBillManagerABI from "./artifacts/contracts/Water Bill Management Smart Contract.sol/WaterBillManager.json"; // Add your ABI file here
 
-const contractAddress = "0x2ef14f566AD247E5F87C8ba9878fF957A1aD992A"; // Replace with your deployed contract address
+const contractAddress = "0xE8f47e4039FEe656d7CC5717Dd35d850E93d0156"; // Your deployed address
+const contractABI = contractJson.abi;
+//D:\WATER_BILL_MANAGEMENT_DAPP\Water_bill_management\src\artifacts\contracts\WaterBill.sol\WaterBill.json
+const App = () => {
+    const [account, setAccount] = useState("");
+    const [contract, setContract] = useState(null);
+    const [billAmount, setBillAmount] = useState("");
+    const [userBill, setUserBill] = useState(null);
 
-function App() {
-  const [provider, setProvider] = useState(null);
-  const [signer, setSigner] = useState(null);
-  const [contract, setContract] = useState(null);
-  const [account, setAccount] = useState("");
-  const [usage, setUsage] = useState(0);
-  const [due, setDue] = useState(0);
-  const [status, setStatus] = useState("");
+    useEffect(() => {
+        connectWallet();
+    }, []);
 
-  useEffect(() => {
-    const init = async () => {
-      if (window.ethereum) {
-        const newProvider = new ethers.providers.Web3Provider(window.ethereum);
-        setProvider(newProvider);
+    const connectWallet = async () => {
+        if (window.ethereum) {
+            try {
+                const provider = new ethers.BrowserProvider(window.ethereum);
+                await window.ethereum.request({ method: "eth_requestAccounts" });
+                const signer = await provider.getSigner();
+                const userAddress = await signer.getAddress();
+                setAccount(userAddress);
 
-        const newSigner = newProvider.getSigner();
-        setSigner(newSigner);
+                const waterBillContract = new ethers.Contract(contractAddress, contractABI, signer);
+                setContract(waterBillContract);
 
-        const instance = new ethers.Contract(
-          contractAddress,
-          WaterBillManagerABI,
-          newSigner
-        );
-        setContract(instance);
-      }
+                fetchBill(waterBillContract);
+            } catch (err) {
+                console.error("Wallet connection failed", err);
+            }
+        } else {
+            alert("Please install MetaMask.");
+        }
     };
 
-    init();
-  }, []);
+    const generateBill = async () => {
+        if (!contract) return alert("Connect to wallet first!");
+        try {
+            const tx = await contract.generateBill(ethers.parseEther(billAmount));
+            await tx.wait();
+            alert("Bill generated!");
+            fetchBill(contract);
+        } catch (err) {
+            console.error(err);
+            alert("Error generating bill.");
+        }
+    };
 
-  const connectWallet = async () => {
-    const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
-    setAccount(accounts[0]);
-    setStatus("Wallet connected.");
-  };
+    const payBill = async () => {
+        if (!contract) return alert("Connect to wallet first!");
+        try {
+            const tx = await contract.payBill({ value: ethers.parseEther(billAmount) });
+            await tx.wait();
+            alert("Bill paid!");
+            fetchBill(contract);
+        } catch (err) {
+            console.error(err);
+            alert("Payment failed.");
+        }
+    };
 
-  const fetchBill = async () => {
-    try {
-      const [userUsage, userDue] = await contract.viewBill();
-      setUsage(Number(userUsage));
-      setDue(ethers.utils.formatEther(userDue));
-      setStatus("Bill fetched.");
-    } catch (error) {
-      console.error(error);
-      setStatus("Error fetching bill. Are you registered?");
-    }
-  };
+    const fetchBill = async (instance = contract) => {
+        if (!instance) return;
+        try {
+            const bill = await instance.getMyBill();
+            setUserBill({
+                amount: ethers.formatEther(bill[0]),
+                paid: bill[1],
+            });
+        } catch (err) {
+            console.error(err);
+            alert("Could not fetch your bill.");
+        }
+    };
 
-  const payBill = async () => {
-    try {
-      const amountInWei = ethers.utils.parseEther(due);
-      const tx = await contract.payBill({ value: amountInWei });
-      await tx.wait();
-      setStatus("Payment successful!");
-      fetchBill();
-    } catch (error) {
-      console.error(error);
-      setStatus("Payment failed.");
-    }
-  };
+    return (
+        <div className="container">
+            <h2>💧 Water Bill dApp</h2>
 
-  return (
-    <div className="app">
-      <h1>💧 Water Bill Manager</h1>
-      <button onClick={connectWallet}>Connect Wallet</button>
-      <p><strong>Account:</strong> {account}</p>
+            <p><strong>Connected Account:</strong> {account}</p>
 
-      <button onClick={fetchBill}>View My Bill</button>
+            <div className="section">
+                <h3>📤 Generate Your Bill</h3>
+                <input
+                    type="number"
+                    placeholder="Enter bill amount (ETH)"
+                    value={billAmount}
+                    onChange={(e) => setBillAmount(e.target.value)}
+                />
+                <button onClick={generateBill} className="button">Generate Bill</button>
+            </div>
 
-      <div className="bill-info">
-        <p><strong>Water Usage:</strong> {usage} liters</p>
-        <p><strong>Amount Due:</strong> {due} ETH</p>
-      </div>
+            <div className="section">
+                <h3>💰 Pay Your Bill</h3>
+                <input
+                    type="number"
+                    placeholder="Enter payment amount (ETH)"
+                    value={billAmount}
+                    onChange={(e) => setBillAmount(e.target.value)}
+                />
+                <button onClick={payBill} className="button">Pay Bill</button>
+            </div>
 
-      <button onClick={payBill} disabled={due === "0"}>Pay Bill</button>
-
-      <p className="status">{status}</p>
-    </div>
-  );
-}
+            <div className="section">
+                <h3>📜 Your Bill Info</h3>
+                <button onClick={() => fetchBill()} className="button">Refresh</button>
+                {userBill && (
+                    <p>
+                        <strong>Amount:</strong> {userBill.amount} ETH<br />
+                        <strong>Status:</strong> {userBill.paid ? "✅ Paid" : "❌ Unpaid"}
+                    </p>
+                )}
+            </div>
+        </div>
+    );
+};
 
 export default App;
